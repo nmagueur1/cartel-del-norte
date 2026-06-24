@@ -42,7 +42,7 @@ module.exports = {
       new ActionRowBuilder().addComponents(
         new TextInputBuilder()
           .setCustomId('wanted_description')
-          .setLabel('Description physique / Dernière position (optionnel)')
+          .setLabel('Description / Dernière position (optionnel)')
           .setStyle(TextInputStyle.Paragraph)
           .setRequired(false)
           .setMaxLength(300)
