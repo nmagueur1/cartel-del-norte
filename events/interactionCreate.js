@@ -381,7 +381,7 @@ module.exports = {
         const crimes      = interaction.fields.getTextInputValue('wanted_crimes');
         const prime       = interaction.fields.getTextInputValue('wanted_prime');
         const description = interaction.fields.getTextInputValue('wanted_description') || null;
-        const photoUrl    = interaction.fields.getTextInputValue('wanted_photo')        || null;
+        const ping        = interaction.fields.getTextInputValue('wanted_ping')         || '';
 
         const fields = [
           { name: '⚖️ Crimes / Motifs', value: crimes,         inline: false },
@@ -395,11 +395,18 @@ module.exports = {
           .setTitle(`🔴 WANTED — ${nom}`)
           .setDescription('> *Toute information menant à sa capture sera récompensée.*')
           .addFields(...fields)
-          .setImage(photoUrl || config.bannerUrl)
+          .setImage(config.bannerUrl)
           .setFooter({ text: `Publié par ${interaction.user.tag} • ${config.footerText}` })
           .setTimestamp();
 
-        await interaction.reply({ embeds: [embed] });
+        try {
+          const annChannel = await client.channels.fetch(config.channels.annonces);
+          await annChannel.send({ content: ping || '', embeds: [embed] });
+          await interaction.reply({ content: `✅ Fiche WANTED publiée dans <#${config.channels.annonces}> !`, ephemeral: true });
+        } catch (err) {
+          return interaction.reply({ content: `❌ Erreur : ${err.message}`, ephemeral: true });
+        }
+
         await sendLog(client, {
           action:  'Fiche Wanted publiée',
           user:    interaction.user,

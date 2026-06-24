@@ -49,10 +49,12 @@ module.exports = {
       ),
       new ActionRowBuilder().addComponents(
         new TextInputBuilder()
-          .setCustomId('wanted_photo')
-          .setLabel('URL photo (optionnel)')
+          .setCustomId('wanted_ping')
+          .setLabel('Mention à pinguer (optionnel)')
           .setStyle(TextInputStyle.Short)
           .setRequired(false)
+          .setPlaceholder('@everyone ou laisse vide')
+          .setMaxLength(100)
       ),
     );
 
