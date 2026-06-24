@@ -43,6 +43,7 @@ module.exports = {
 
     // 2. BOUTONS
     if (interaction.isButton()) {
+      // ── Role React ────────────────────────────────────────────────
       if (interaction.customId.startsWith('role_react_')) {
         const roleId = interaction.customId.replace('role_react_', '');
         const role = interaction.guild.roles.cache.get(roleId);
@@ -57,7 +58,6 @@ module.exports = {
           return interaction.reply({ content: `✅ Rôle **${role.name}** attribué !`, ephemeral: true });
         }
       }
-    }
 
       // ── Boutons vote ──────────────────────────────────────────────
       if (interaction.customId.startsWith('vote_')) {
