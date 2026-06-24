@@ -308,25 +308,29 @@ module.exports = {
         const objectif = interaction.fields.getTextInputValue('briefing_objectif');
         const lieu     = interaction.fields.getTextInputValue('briefing_lieu');
         const heure    = interaction.fields.getTextInputValue('briefing_heure');
-        const notes    = interaction.fields.getTextInputValue('briefing_notes') || null;
-
-        const fields = [
-          { name: '🎯 Objectif',     value: objectif, inline: false },
-          { name: '📍 Lieu',         value: lieu,     inline: true  },
-          { name: '⏰ Heure / RDV',  value: heure,    inline: true  },
-        ];
-        if (notes) fields.push({ name: '📝 Consignes', value: notes, inline: false });
+        const ping     = interaction.fields.getTextInputValue('briefing_ping') || '';
 
         const embed = new EmbedBuilder()
           .setColor(config.colors.warning)
           .setTitle(`📋 BRIEFING — ${nom}`)
           .setDescription('> *Information confidentielle. Ne pas partager hors de l\'organisation.*')
-          .addFields(...fields)
+          .addFields(
+            { name: '🎯 Objectif',    value: objectif, inline: false },
+            { name: '📍 Lieu',        value: lieu,     inline: true  },
+            { name: '⏰ Heure / RDV', value: heure,    inline: true  },
+          )
           .setImage(config.bannerUrl)
           .setFooter({ text: `Briefing par ${interaction.user.tag} • ${config.footerText}` })
           .setTimestamp();
 
-        await interaction.reply({ embeds: [embed] });
+        try {
+          const annChannel = await client.channels.fetch(config.channels.annonces);
+          await annChannel.send({ content: ping || '', embeds: [embed] });
+          await interaction.reply({ content: `✅ Briefing publié dans <#${config.channels.annonces}> !`, ephemeral: true });
+        } catch (err) {
+          return interaction.reply({ content: `❌ Erreur : ${err.message}`, ephemeral: true });
+        }
+
         await sendLog(client, {
           action:  'Briefing posté',
           user:    interaction.user,

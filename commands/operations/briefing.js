@@ -4,58 +4,40 @@ const { hasAccess, denyAccess } = require('../../utils/permissions');
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('briefing')
-    .setDescription('📋 Poste un briefing d\'opération'),
+    .setDescription('📋 Poste un briefing d\'opération dans #annonces'),
 
   async execute(interaction) {
     if (!hasAccess(interaction.member)) return denyAccess(interaction);
 
     const modal = new ModalBuilder()
-      .setCustomId('modal_briefing')
-      .setTitle('📋 Briefing d\'Opération');
+      .setCustomId('modal_annonce')
+      .setTitle('📢 Nouvelle Annonce');
+
+    const titre = new TextInputBuilder()
+      .setCustomId('ann_titre')
+      .setLabel('Titre de l\'annonce')
+      .setStyle(TextInputStyle.Short)
+      .setRequired(true)
+      .setMaxLength(200);
+
+    const description = new TextInputBuilder()
+      .setCustomId('ann_description')
+      .setLabel('Contenu de l\'annonce')
+      .setStyle(TextInputStyle.Paragraph)
+      .setRequired(true)
+      .setMaxLength(2000);
+
+    const ping = new TextInputBuilder()
+      .setCustomId('ann_ping')
+      .setLabel('Mention à pinguer (ex: @everyone) – optionnel')
+      .setStyle(TextInputStyle.Short)
+      .setRequired(false)
+      .setPlaceholder('@everyone ou laisse vide');
 
     modal.addComponents(
-      new ActionRowBuilder().addComponents(
-        new TextInputBuilder()
-          .setCustomId('briefing_nom')
-          .setLabel('Nom de l\'opération')
-          .setStyle(TextInputStyle.Short)
-          .setPlaceholder('Ex: Opération Serpent Noir')
-          .setRequired(true)
-          .setMaxLength(100)
-      ),
-      new ActionRowBuilder().addComponents(
-        new TextInputBuilder()
-          .setCustomId('briefing_objectif')
-          .setLabel('Objectif')
-          .setStyle(TextInputStyle.Paragraph)
-          .setRequired(true)
-          .setMaxLength(500)
-      ),
-      new ActionRowBuilder().addComponents(
-        new TextInputBuilder()
-          .setCustomId('briefing_lieu')
-          .setLabel('Lieu / Zone d\'opération')
-          .setStyle(TextInputStyle.Short)
-          .setRequired(true)
-          .setMaxLength(100)
-      ),
-      new ActionRowBuilder().addComponents(
-        new TextInputBuilder()
-          .setCustomId('briefing_heure')
-          .setLabel('Heure de début — Point de RDV')
-          .setStyle(TextInputStyle.Short)
-          .setPlaceholder('Ex: 21h00 — Parking du casino')
-          .setRequired(true)
-          .setMaxLength(100)
-      ),
-      new ActionRowBuilder().addComponents(
-        new TextInputBuilder()
-          .setCustomId('briefing_notes')
-          .setLabel('Consignes supplémentaires (optionnel)')
-          .setStyle(TextInputStyle.Paragraph)
-          .setRequired(false)
-          .setMaxLength(500)
-      ),
+      new ActionRowBuilder().addComponents(titre),
+      new ActionRowBuilder().addComponents(description),
+      new ActionRowBuilder().addComponents(ping),
     );
 
     await interaction.showModal(modal);
