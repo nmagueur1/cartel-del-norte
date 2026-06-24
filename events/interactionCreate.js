@@ -4,6 +4,7 @@ const { isAdmin, hasAccess, hasCarterRole, denyAccess } = require('../utils/perm
 const config = require('../utils/config');
 const { getAbsencesData, saveAbsencesData, updatePanel } = require('../utils/absences');
 const { addWarn, getRoleIdForLevel } = require('../utils/avertissements');
+const { getVote, castVote } = require('../utils/votes');
 
 module.exports = {
   name: 'interactionCreate',
@@ -55,6 +56,43 @@ module.exports = {
           await member.roles.add(roleId);
           return interaction.reply({ content: `✅ Rôle **${role.name}** attribué !`, ephemeral: true });
         }
+      }
+    }
+
+      // ── Boutons vote ──────────────────────────────────────────────
+      if (interaction.customId.startsWith('vote_')) {
+        const parts  = interaction.customId.split('_'); // ['vote','yes/no/abstain','id']
+        const choice = parts[1]; // 'yes' | 'no' | 'abstain'
+        const voteId = parts[2];
+
+        if (!['yes', 'no', 'abstain'].includes(choice)) return;
+
+        const vote = getVote(voteId);
+        if (!vote) {
+          return interaction.reply({ content: '❌ Ce vote est introuvable ou a expiré.', ephemeral: true });
+        }
+
+        castVote(voteId, interaction.user.id, choice);
+
+        const choiceLabel = { yes: '✅ Oui', no: '❌ Non', abstain: '🤷 Abstention' }[choice];
+
+        // Mettre à jour le compteur dans l'embed
+        try {
+          const channel = await interaction.client.channels.fetch(vote.channelId);
+          const msg     = await channel.messages.fetch(vote.messageId);
+          const oldData = msg.embeds[0].toJSON();
+
+          const newDescription =
+            vote.baseDescription +
+            `**✅ Oui :** \`${vote.yes.size}\`\n` +
+            `**❌ Non :** \`${vote.no.size}\`\n` +
+            `**🤷 Abstention :** \`${vote.abstain.size}\``;
+
+          const newEmbed = new EmbedBuilder(oldData).setDescription(newDescription);
+          await msg.edit({ embeds: [newEmbed] });
+        } catch { /* message supprimé ou inaccessible */ }
+
+        return interaction.reply({ content: `Vote enregistré : **${choiceLabel}**`, ephemeral: true });
       }
     }
 
@@ -261,6 +299,113 @@ module.exports = {
         } catch (err) {
           await interaction.reply({ content: `❌ Erreur : ${err.message}`, ephemeral: true });
         }
+        return;
+      }
+
+      // Modal briefing
+      if (interaction.customId === 'modal_briefing') {
+        const nom      = interaction.fields.getTextInputValue('briefing_nom');
+        const objectif = interaction.fields.getTextInputValue('briefing_objectif');
+        const lieu     = interaction.fields.getTextInputValue('briefing_lieu');
+        const heure    = interaction.fields.getTextInputValue('briefing_heure');
+        const notes    = interaction.fields.getTextInputValue('briefing_notes') || null;
+
+        const fields = [
+          { name: '🎯 Objectif',     value: objectif, inline: false },
+          { name: '📍 Lieu',         value: lieu,     inline: true  },
+          { name: '⏰ Heure / RDV',  value: heure,    inline: true  },
+        ];
+        if (notes) fields.push({ name: '📝 Consignes', value: notes, inline: false });
+
+        const embed = new EmbedBuilder()
+          .setColor(config.colors.warning)
+          .setTitle(`📋 BRIEFING — ${nom}`)
+          .setDescription('> *Information confidentielle. Ne pas partager hors de l\'organisation.*')
+          .addFields(...fields)
+          .setImage(config.bannerUrl)
+          .setFooter({ text: `Briefing par ${interaction.user.tag} • ${config.footerText}` })
+          .setTimestamp();
+
+        await interaction.reply({ embeds: [embed] });
+        await sendLog(client, {
+          action:  'Briefing posté',
+          user:    interaction.user,
+          details: `Opération : ${nom} | Lieu : ${lieu} | ${heure}`,
+          color:   config.colors.warning,
+        });
+        return;
+      }
+
+      // Modal debriefing
+      if (interaction.customId === 'modal_debriefing') {
+        const nom      = interaction.fields.getTextInputValue('debrief_nom');
+        const resultat = interaction.fields.getTextInputValue('debrief_resultat');
+        const bilan    = interaction.fields.getTextInputValue('debrief_bilan');
+        const pertes   = interaction.fields.getTextInputValue('debrief_pertes') || null;
+        const notes    = interaction.fields.getTextInputValue('debrief_notes')   || null;
+
+        const r = resultat.toLowerCase();
+        let color = config.colors.info;
+        if (r.includes('succ'))    color = config.colors.success;
+        else if (r.includes('ch')) color = config.colors.danger;  // échec
+        else if (r.includes('partiel')) color = config.colors.warning;
+
+        const fields = [
+          { name: '📊 Résultat', value: resultat, inline: true },
+          { name: '📋 Bilan',    value: bilan,    inline: false },
+        ];
+        if (pertes) fields.push({ name: '💀 Pertes / Dommages', value: pertes, inline: false });
+        if (notes)  fields.push({ name: '📝 Notes',             value: notes,  inline: false });
+
+        const embed = new EmbedBuilder()
+          .setColor(color)
+          .setTitle(`📊 DEBRIEFING — ${nom}`)
+          .addFields(...fields)
+          .setImage(config.bannerUrl)
+          .setFooter({ text: `Debriefing par ${interaction.user.tag} • ${config.footerText}` })
+          .setTimestamp();
+
+        await interaction.reply({ embeds: [embed] });
+        await sendLog(client, {
+          action:  'Debriefing posté',
+          user:    interaction.user,
+          details: `Opération : ${nom} | Résultat : ${resultat}`,
+          color,
+        });
+        return;
+      }
+
+      // Modal wanted
+      if (interaction.customId === 'modal_wanted') {
+        const nom         = interaction.fields.getTextInputValue('wanted_nom');
+        const crimes      = interaction.fields.getTextInputValue('wanted_crimes');
+        const prime       = interaction.fields.getTextInputValue('wanted_prime');
+        const description = interaction.fields.getTextInputValue('wanted_description') || null;
+        const photoUrl    = interaction.fields.getTextInputValue('wanted_photo')        || null;
+
+        const fields = [
+          { name: '⚖️ Crimes / Motifs', value: crimes,         inline: false },
+          { name: '💰 Prime',           value: `**${prime}**`, inline: true  },
+          { name: '⚠️ Dangerosité',     value: 'Extrêmement dangereux — À approcher avec précaution', inline: false },
+        ];
+        if (description) fields.push({ name: '📍 Description / Dernière position', value: description, inline: false });
+
+        const embed = new EmbedBuilder()
+          .setColor(0xFF0000)
+          .setTitle(`🔴 WANTED — ${nom}`)
+          .setDescription('> *Toute information menant à sa capture sera récompensée.*')
+          .addFields(...fields)
+          .setImage(photoUrl || config.bannerUrl)
+          .setFooter({ text: `Publié par ${interaction.user.tag} • ${config.footerText}` })
+          .setTimestamp();
+
+        await interaction.reply({ embeds: [embed] });
+        await sendLog(client, {
+          action:  'Fiche Wanted publiée',
+          user:    interaction.user,
+          details: `Personnage : ${nom} | Prime : ${prime}`,
+          color:   0xFF0000,
+        });
         return;
       }
 
