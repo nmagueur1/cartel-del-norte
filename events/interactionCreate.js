@@ -50,6 +50,15 @@ module.exports = {
         const liked     = toggleLike(messageId, interaction.user.id);
         const count     = getLikeCount(messageId);
 
+        const footerText = count === 0
+          ? '0 personne n\'a aimé'
+          : count === 1
+            ? '1 personne a aimé'
+            : `${count} personnes ont aimé`;
+
+        const oldEmbed = interaction.message.embeds[0];
+        const newEmbed = EmbedBuilder.from(oldEmbed).setFooter({ text: footerText });
+
         const newRow = new ActionRowBuilder().addComponents(
           new ButtonBuilder()
             .setCustomId(`insta_like_${messageId}`)
@@ -57,7 +66,7 @@ module.exports = {
             .setStyle(liked ? ButtonStyle.Danger : ButtonStyle.Secondary)
         );
 
-        await interaction.update({ components: [newRow] });
+        await interaction.update({ embeds: [newEmbed], components: [newRow] });
         return;
       }
 

@@ -60,8 +60,7 @@ module.exports = {
       .setColor(0xE1306C) // Rose Instagram
       .setAuthor({ name: displayName, iconURL: avatarUrl })
       .setImage(`attachment://${fileName}`)
-      .setFooter({ text: config.footerText })
-      .setTimestamp();
+      .setFooter({ text: '0 personne n\'a aimé' });
 
     if (caption) embed.setDescription(caption);
 
