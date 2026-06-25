@@ -2,6 +2,7 @@ const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder
 const { sendLog } = require('../utils/logger');
 const { isAdmin, hasAccess, hasCarterRole, denyAccess } = require('../utils/permissions');
 const config = require('../utils/config');
+const { toggleLike, getLikeCount, hasLiked } = require('../utils/instagram');
 const { getAbsencesData, saveAbsencesData, updatePanel } = require('../utils/absences');
 const { addWarn, getRoleIdForLevel } = require('../utils/avertissements');
 const { getVote, castVote } = require('../utils/votes');
@@ -43,6 +44,23 @@ module.exports = {
 
     // 2. BOUTONS
     if (interaction.isButton()) {
+      // ── Like Instagram ────────────────────────────────────────────
+      if (interaction.customId.startsWith('insta_like_')) {
+        const messageId = interaction.customId.replace('insta_like_', '');
+        const liked     = toggleLike(messageId, interaction.user.id);
+        const count     = getLikeCount(messageId);
+
+        const newRow = new ActionRowBuilder().addComponents(
+          new ButtonBuilder()
+            .setCustomId(`insta_like_${messageId}`)
+            .setLabel(`❤️  ${count}`)
+            .setStyle(liked ? ButtonStyle.Danger : ButtonStyle.Secondary)
+        );
+
+        await interaction.update({ components: [newRow] });
+        return;
+      }
+
       // ── Panel demande de rôle (ouvert à tous) ─────────────────────
       if (interaction.customId === 'demande_role_panel_btn') {
         const modal = new ModalBuilder()
