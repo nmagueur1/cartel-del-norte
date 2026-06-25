@@ -44,5 +44,5 @@ module.exports = {
 
   // -- Branding --------------------------------
   // Banniere officielle Del Norte - Famille Kyee (utilisee sur TOUS les embeds via .setImage)
-  bannerUrl: 'https://media.discordapp.net/attachments/1500886780461973586/1501934996943016057/Bannieres_Carter.png?ex=69fde177&is=69fc8ff7&hm=2027678c52d07feb15852eaca744f8bf250e609326bc636b225b2a83066e76a9&=&format=webp&quality=lossless&width=1872&height=468',
+  bannerUrl: 'https://media.discordapp.net/attachments/1519407405157322923/1519691947223285760/Gemini_Generated_Image_1nbyj41nbyj41nby.png?ex=6a3e7aea&is=6a3d296a&hm=bdaf3e48998f1ca66674bdba7b704319a500523a4de1ce3dd8923a74f9969bd0&=&format=webp&quality=lossless',
 };

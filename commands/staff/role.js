@@ -21,6 +21,7 @@ module.exports = {
         'Clique sur le bouton ci-dessous pour soumettre une demande de rôle.\n' +
         'Un membre du staff traitera ta demande dans les plus brefs délais.'
       )
+      .setImage(config.bannerUrl)
       .setFooter({ text: config.footerText })
       .setTimestamp();
 
