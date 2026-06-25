@@ -84,7 +84,12 @@ module.exports = {
     // Envoyer l'embed avec l'image ré-uploadée
     const posted = await message.channel.send({ embeds: [embed], files: [file], components: [tmpRow] });
 
-    // Mettre à jour le bouton avec le vrai message ID
+    // Récupérer l'URL CDN permanente et remplacer attachment:// par l'URL directe
+    // (sinon Discord perd l'image quand l'embed est mis à jour via interaction.update)
+    const cdnUrl = posted.attachments.first()?.url;
+    const finalEmbed = EmbedBuilder.from(posted.embeds[0]);
+    if (cdnUrl) finalEmbed.setImage(cdnUrl);
+
     const realRow = new ActionRowBuilder().addComponents(
       new ButtonBuilder()
         .setCustomId(`insta_like_${posted.id}`)
@@ -92,6 +97,7 @@ module.exports = {
         .setStyle(ButtonStyle.Secondary)
     );
 
-    await posted.edit({ components: [realRow] });
+    // attachments: [] retire la pièce jointe visible au-dessus de l'embed
+    await posted.edit({ embeds: [finalEmbed], components: [realRow], attachments: [] });
   },
 };
