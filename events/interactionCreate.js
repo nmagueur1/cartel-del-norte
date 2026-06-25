@@ -1,4 +1,4 @@
-const { EmbedBuilder, ActionRowBuilder } = require('discord.js');
+const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle } = require('discord.js');
 const { sendLog } = require('../utils/logger');
 const { isAdmin, hasAccess, hasCarterRole, denyAccess } = require('../utils/permissions');
 const config = require('../utils/config');
@@ -43,6 +43,56 @@ module.exports = {
 
     // 2. BOUTONS
     if (interaction.isButton()) {
+      // ── Panel demande de rôle (ouvert à tous) ─────────────────────
+      if (interaction.customId === 'demande_role_panel_btn') {
+        const modal = new ModalBuilder()
+          .setCustomId('modal_demande_role')
+          .setTitle('Demande de Rôle');
+
+        const prenomInput = new TextInputBuilder()
+          .setCustomId('role_prenom')
+          .setLabel('Prénom (RP)')
+          .setStyle(TextInputStyle.Short)
+          .setRequired(true)
+          .setMaxLength(50);
+
+        const nomInput = new TextInputBuilder()
+          .setCustomId('role_nom')
+          .setLabel('Nom (RP)')
+          .setStyle(TextInputStyle.Short)
+          .setRequired(true)
+          .setMaxLength(50);
+
+        const roleInput = new TextInputBuilder()
+          .setCustomId('role_role')
+          .setLabel('Rôle que tu as (ex : Membre, Recrue…)')
+          .setStyle(TextInputStyle.Short)
+          .setRequired(true)
+          .setMaxLength(100);
+
+        modal.addComponents(
+          new ActionRowBuilder().addComponents(prenomInput),
+          new ActionRowBuilder().addComponents(nomInput),
+          new ActionRowBuilder().addComponents(roleInput),
+        );
+
+        return interaction.showModal(modal);
+      }
+
+      // ── Bouton "Fait" demande de rôle (accesBot uniquement) ───────
+      if (interaction.customId.startsWith('role_fait_')) {
+        if (!hasAccess(interaction.member)) {
+          return interaction.reply({ content: '🚫 Seuls les membres **accesBot** peuvent valider une demande.', ephemeral: true });
+        }
+
+        try {
+          await interaction.message.delete();
+        } catch {
+          return interaction.reply({ content: '❌ Impossible de supprimer le message.', ephemeral: true });
+        }
+        return;
+      }
+
       // ── Role React ────────────────────────────────────────────────
       if (interaction.customId.startsWith('role_react_')) {
         const roleId = interaction.customId.replace('role_react_', '');
@@ -153,6 +203,44 @@ module.exports = {
 
     // 4. MODALS
     if (interaction.isModalSubmit()) {
+      // Modal demande de rôle
+      if (interaction.customId === 'modal_demande_role') {
+        const prenom = interaction.fields.getTextInputValue('role_prenom');
+        const nom    = interaction.fields.getTextInputValue('role_nom');
+        const role   = interaction.fields.getTextInputValue('role_role');
+
+        const embed = new EmbedBuilder()
+          .setColor(config.colors.info)
+          .setTitle('🎖️ Nouvelle Demande de Rôle')
+          .setDescription(`<@${interaction.user.id}> vient de soumettre une demande de rôle.`)
+          .addFields(
+            { name: '👤 Prénom', value: prenom, inline: true },
+            { name: '👤 Nom',    value: nom,    inline: true },
+            { name: '​',         value: '​',    inline: true },
+            { name: '🎖️ Rôle demandé', value: role, inline: false },
+          )
+          .setImage(config.bannerUrl)
+          .setFooter({ text: `Demande de ${interaction.user.tag} • ${config.footerText}` })
+          .setTimestamp();
+
+        const row = new ActionRowBuilder().addComponents(
+          new ButtonBuilder()
+            .setCustomId(`role_fait_${interaction.user.id}`)
+            .setLabel('Fait')
+            .setStyle(ButtonStyle.Success)
+            .setEmoji('✅')
+        );
+
+        try {
+          const demandeChannel = await client.channels.fetch(config.channels.demandeRole);
+          await demandeChannel.send({ embeds: [embed], components: [row] });
+          await interaction.reply({ content: '✅ Ta demande a bien été envoyée ! Le staff s\'en occupera rapidement.', ephemeral: true });
+        } catch (err) {
+          return interaction.reply({ content: `❌ Erreur lors de l'envoi : ${err.message}`, ephemeral: true });
+        }
+        return;
+      }
+
       // Modal embed generique
       if (interaction.customId === 'modal_embed') {
         const titre       = interaction.fields.getTextInputValue('embed_titre');
