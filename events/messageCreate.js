@@ -46,7 +46,10 @@ module.exports = {
       (a) => a.contentType && IMAGE_TYPES.some((t) => a.contentType.startsWith(t))
     );
 
-    if (!imageAttachment) return;
+    if (!imageAttachment) {
+      try { await message.delete(); } catch { /* permissions */ }
+      return;
+    }
 
     const caption      = message.content?.trim() || null;
     const displayName  = message.member?.displayName ?? message.author.username;
