@@ -3,8 +3,23 @@ const {
   ActionRowBuilder,
   ButtonBuilder,
   ButtonStyle,
+  AttachmentBuilder,
 } = require('discord.js');
+const https = require('https');
+const http  = require('http');
 const config = require('../utils/config');
+
+function fetchBuffer(url) {
+  return new Promise((resolve, reject) => {
+    const lib = url.startsWith('https') ? https : http;
+    lib.get(url, (res) => {
+      const chunks = [];
+      res.on('data', (chunk) => chunks.push(chunk));
+      res.on('end', () => resolve(Buffer.concat(chunks)));
+      res.on('error', reject);
+    }).on('error', reject);
+  });
+}
 
 const INSTAGRAM_CHANNEL_ID = '1519407405157322923';
 
@@ -30,32 +45,37 @@ module.exports = {
     const displayName = message.member?.displayName ?? message.author.username;
     const avatarUrl   = message.author.displayAvatarURL({ size: 64 });
 
+    // Télécharger l'image AVANT de supprimer le message (l'URL devient invalide après)
+    const fileName = imageAttachment.name || 'image.png';
+    const buffer   = await fetchBuffer(imageAttachment.url);
+    const file     = new AttachmentBuilder(buffer, { name: fileName });
+
     // Supprimer le message original
     try {
       await message.delete();
     } catch { /* permissions manquantes */ }
 
-    // Construire l'embed style Instagram
+    // Construire l'embed style Instagram (référence le fichier ré-uploadé)
     const embed = new EmbedBuilder()
       .setColor(0xE1306C) // Rose Instagram
       .setAuthor({ name: displayName, iconURL: avatarUrl })
-      .setImage(imageAttachment.url)
+      .setImage(`attachment://${fileName}`)
       .setFooter({ text: config.footerText })
       .setTimestamp();
 
     if (caption) embed.setDescription(caption);
 
-    // Bouton like
-    const row = new ActionRowBuilder().addComponents(
+    // Bouton like temporairement désactivé (on n'a pas encore l'ID du message)
+    const tmpRow = new ActionRowBuilder().addComponents(
       new ButtonBuilder()
-        .setCustomId(`insta_like_placeholder`) // sera remplacé après envoi
+        .setCustomId('insta_like_tmp')
         .setLabel('❤️  0')
         .setStyle(ButtonStyle.Secondary)
-        .setDisabled(true) // désactivé jusqu'à qu'on ait le vrai message ID
+        .setDisabled(true)
     );
 
-    // Envoyer l'embed
-    const posted = await message.channel.send({ embeds: [embed], components: [row] });
+    // Envoyer l'embed avec l'image ré-uploadée
+    const posted = await message.channel.send({ embeds: [embed], files: [file], components: [tmpRow] });
 
     // Mettre à jour le bouton avec le vrai message ID
     const realRow = new ActionRowBuilder().addComponents(
