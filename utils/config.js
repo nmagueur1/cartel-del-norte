@@ -10,6 +10,7 @@ module.exports = {
     logs:         '1519408570381373440',
     absence:      '1519407106053247117',
     demandeRole:  '1519406368262717562',
+    mediaStorage: '1519697930938744852',  // Salon privé invisible (bot only) pour stocker les images Instagram
   },
 
   // -- Roles -----------------------------------

@@ -46,33 +46,44 @@ module.exports = {
       (a) => a.contentType && IMAGE_TYPES.some((t) => a.contentType.startsWith(t))
     );
 
-    if (!imageAttachment) return; // Pas d'image → on ne touche à rien
+    if (!imageAttachment) return;
 
-    const caption = message.content?.trim() || null;
-    const author  = message.member ?? message.author;
-    const displayName = message.member?.displayName ?? message.author.username;
-    const avatarUrl   = message.author.displayAvatarURL({ size: 64 });
+    const caption      = message.content?.trim() || null;
+    const displayName  = message.member?.displayName ?? message.author.username;
+    const avatarUrl    = message.author.displayAvatarURL({ size: 64 });
 
-    // Télécharger l'image AVANT de supprimer le message (l'URL devient invalide après)
+    // 1. Télécharger l'image AVANT de supprimer le message original
     const fileName = imageAttachment.name || 'image.png';
     const buffer   = await fetchBuffer(imageAttachment.url);
     const file     = new AttachmentBuilder(buffer, { name: fileName });
 
-    // Supprimer le message original
-    try {
-      await message.delete();
-    } catch { /* permissions manquantes */ }
+    // 2. Supprimer le message original
+    try { await message.delete(); } catch { /* permissions manquantes */ }
 
-    // Construire l'embed style Instagram (référence le fichier ré-uploadé)
+    // 3. Uploader l'image dans le salon de stockage privé pour obtenir une URL CDN permanente
+    //    Ce message n'est jamais supprimé → l'URL reste valide indéfiniment
+    let cdnUrl = null;
+    try {
+      const storageChannel = await client.channels.fetch(config.channels.mediaStorage);
+      const storageMsg     = await storageChannel.send({ files: [file] });
+      cdnUrl = storageMsg.attachments.first()?.url ?? null;
+    } catch (err) {
+      console.error('[Instagram] Erreur upload stockage :', err.message);
+      return;
+    }
+
+    if (!cdnUrl) return;
+
+    // 4. Construire l'embed propre (pas de fichier joint, juste l'URL CDN)
     const embed = new EmbedBuilder()
-      .setColor(0xE1306C) // Rose Instagram
+      .setColor(0xE1306C)
       .setAuthor({ name: displayName, iconURL: avatarUrl })
-      .setImage(`attachment://${fileName}`)
+      .setImage(cdnUrl)
       .setFooter({ text: '0 personne n\'a aimé' });
 
     if (caption) embed.setDescription(caption);
 
-    // Bouton like temporairement désactivé (on n'a pas encore l'ID du message)
+    // Bouton like temporaire (désactivé, pas encore l'ID du message)
     const tmpRow = new ActionRowBuilder().addComponents(
       new ButtonBuilder()
         .setCustomId('insta_like_tmp')
@@ -81,15 +92,10 @@ module.exports = {
         .setDisabled(true)
     );
 
-    // Envoyer l'embed avec l'image ré-uploadée
-    const posted = await message.channel.send({ embeds: [embed], files: [file], components: [tmpRow] });
+    // 5. Poster l'embed dans le salon Instagram (sans fichier joint → pas de double image)
+    const posted = await message.channel.send({ embeds: [embed], components: [tmpRow] });
 
-    // Récupérer l'URL CDN permanente et remplacer attachment:// par l'URL directe
-    // (sinon Discord perd l'image quand l'embed est mis à jour via interaction.update)
-    const cdnUrl = posted.attachments.first()?.url;
-    const finalEmbed = EmbedBuilder.from(posted.embeds[0]);
-    if (cdnUrl) finalEmbed.setImage(cdnUrl);
-
+    // 6. Mettre à jour le bouton avec le vrai message ID
     const realRow = new ActionRowBuilder().addComponents(
       new ButtonBuilder()
         .setCustomId(`insta_like_${posted.id}`)
@@ -97,7 +103,6 @@ module.exports = {
         .setStyle(ButtonStyle.Secondary)
     );
 
-    // attachments: [] retire la pièce jointe visible au-dessus de l'embed
-    await posted.edit({ embeds: [finalEmbed], components: [realRow], attachments: [] });
+    await posted.edit({ components: [realRow] });
   },
 };
