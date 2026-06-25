@@ -26,12 +26,20 @@ const INSTAGRAM_CHANNEL_ID = '1519407405157322923';
 // Types MIME image acceptés
 const IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/jpg', 'image/gif', 'image/webp'];
 
+// Déduplication : évite de traiter le même message deux fois
+const processing = new Set();
+
 module.exports = {
   name: 'messageCreate',
   async execute(message, client) {
     // Ignorer les bots et les mauvais salons
     if (message.author.bot) return;
     if (message.channel.id !== INSTAGRAM_CHANNEL_ID) return;
+
+    // Ignorer si déjà en cours de traitement
+    if (processing.has(message.id)) return;
+    processing.add(message.id);
+    setTimeout(() => processing.delete(message.id), 15_000);
 
     // Chercher une image dans les pièces jointes
     const imageAttachment = message.attachments.find(
