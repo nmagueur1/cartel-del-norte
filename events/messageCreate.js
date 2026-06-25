@@ -58,7 +58,13 @@ module.exports = {
     const file     = new AttachmentBuilder(buffer, { name: fileName });
 
     // 2. Supprimer le message original
-    try { await message.delete(); } catch { /* permissions manquantes */ }
+    // Si erreur 10008 (Unknown Message) → une autre instance du bot l'a déjà traité → on stop
+    try {
+      await message.delete();
+    } catch (err) {
+      if (err.code === 10008) return;
+      // Autre erreur (permissions) → on continue quand même
+    }
 
     // 3. Uploader l'image dans le salon de stockage privé pour obtenir une URL CDN permanente
     //    Ce message n'est jamais supprimé → l'URL reste valide indéfiniment
