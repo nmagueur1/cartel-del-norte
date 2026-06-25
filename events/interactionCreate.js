@@ -219,7 +219,6 @@ module.exports = {
             { name: '​',         value: '​',    inline: true },
             { name: '🎖️ Rôle demandé', value: role, inline: false },
           )
-          .setImage(config.bannerUrl)
           .setFooter({ text: `Demande de ${interaction.user.tag} • ${config.footerText}` })
           .setTimestamp();
 
